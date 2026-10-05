@@ -8,6 +8,7 @@ its chat client and its tool calls; we additionally instrument FastAPI and httpx
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import os
@@ -15,6 +16,7 @@ import sys
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
+import httpx2
 from azure.core.pipeline.policies import SansIOHTTPPolicy
 from opentelemetry import trace
 
@@ -83,6 +85,32 @@ def instrument_app(app) -> None:
 def tracer() -> trace.Tracer:
     """Tracer used for the agent's own spans (chat turns, MCP calls, CU calls)."""
     return trace.get_tracer(_TRACER_NAME)
+
+
+async def log_model_request(request: httpx2.Request) -> None:
+    if request.method != "POST" or not request.url.path.endswith("/responses"):
+        return
+    payload = json.loads(request.content)
+    logging.getLogger(__name__).info(
+        "Model request: model=%s bytes=%d input_characters=%d tools=%d max_output_tokens=%s",
+        payload.get("model"), len(request.content),
+        len(json.dumps(payload.get("input", []))), len(payload.get("tools", [])),
+        payload.get("max_output_tokens"),
+    )
+
+
+async def log_model_response(response: httpx2.Response) -> None:
+    if not response.request.url.path.endswith("/responses"):
+        return
+    headers = {
+        name: value for name, value in response.headers.items()
+        if name.startswith("x-ratelimit-")
+        or name in ("retry-after", "retry-after-ms", "apim-request-id", "x-request-id")
+    }
+    logging.getLogger(__name__).log(
+        logging.WARNING if response.status_code == 429 else logging.INFO,
+        "Model response: status=%d quota=%s", response.status_code, headers,
+    )
 
 
 class ContentUnderstandingTelemetryPolicy(SansIOHTTPPolicy):

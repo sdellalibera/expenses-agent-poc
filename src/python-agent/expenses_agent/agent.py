@@ -35,7 +35,7 @@ from .history import McpConversationHistoryProvider, collect_tool_calls
 from .images import analysis_image
 from .mcp_client import ExpensesMcpClient
 from .memory import CosmosMemory
-from .observability import ContentUnderstandingTelemetryPolicy, tracer
+from .observability import ContentUnderstandingTelemetryPolicy, log_model_request, log_model_response, tracer
 from .tools.parser_tool import receipt_json
 
 logger = logging.getLogger(__name__)
@@ -249,7 +249,11 @@ class ExpensesAgent:
         )
         original_client = self._chat_client.client
         self._chat_client.client = original_client.with_options(
-            http_client=httpx2.AsyncClient(timeout=120), max_retries=settings.model_max_retries,
+            http_client=httpx2.AsyncClient(
+                timeout=120,
+                event_hooks={"request": [log_model_request], "response": [log_model_response]},
+            ),
+            max_retries=settings.model_max_retries,
         )
         await original_client.close()
         self._agent = Agent(

@@ -1,14 +1,14 @@
 //Packages
-#:package Aspire.Hosting.AppHost@13.5.2
-#:package Aspire.Hosting.Azure.CosmosDB@13.5.2
-#:package Aspire.Hosting.Azure.Storage@13.5.2
-#:package Aspire.Hosting.Foundry@13.5.2-preview.1.26421.6
-#:package Aspire.Hosting.JavaScript@13.5.2
-#:package Aspire.Hosting.Python@13.5.2
+#:package Aspire.Hosting.AppHost@13.5.3
+#:package Aspire.Hosting.Azure.CosmosDB@13.5.3
+#:package Aspire.Hosting.Azure.Storage@13.5.3
+#:package Aspire.Hosting.Foundry@13.5.3-preview.1.26425.3
+#:package Aspire.Hosting.JavaScript@13.5.3
+#:package Aspire.Hosting.Python@13.5.3
 #:package CommunityToolkit.Aspire.Hosting.PowerShell@13.5.0
 
 //Sdks
-#:sdk Aspire.AppHost.Sdk@13.5.2
+#:sdk Aspire.AppHost.Sdk@13.5.3
 
 // The file-based AppHost intentionally does not use the Aspire CLI bundle.
 #:property NoWarn=ASPIRE010
@@ -23,14 +23,24 @@ using System.Management.Automation;
 var builder = DistributedApplication.CreateBuilder(args);
 
 // ---------------------------------------------------------------------------
-// Microsoft Foundry: the chat model plus the deployments Content Understanding
-// needs for its default analyzer models.
+// Microsoft Foundry: reuse the existing account and create the project plus the
+// model deployments Content Understanding needs for its default analyzer models.
+// The current Azure resource group must contain the account: using a separate
+// resource-group scope here makes the Foundry preview integration emit child
+// resources that Bicep rejects with BCP165.
 // ---------------------------------------------------------------------------
-var foundry = builder.AddFoundry("foundry");
+var existingFoundryName = builder.AddParameter("existingFoundryName");
+
+var foundry = builder.AddFoundry("foundry")
+    .AsExisting(existingFoundryName, resourceGroupParameter: null!);
+
 var foundryProject = foundry.AddProject("expenses");
 
 var chatModel = foundryProject.AddModelDeployment("gpt5-4", FoundryModel.OpenAI.Gpt54);
 var miniModel = foundryProject.AddModelDeployment("gpt5-4-mini", FoundryModel.OpenAI.Gpt54Mini);
+// The default 1,000 TPM cannot cover a receipt plus the agent's tool schemas.
+chatModel.Resource.SkuCapacity = 100;
+miniModel.Resource.SkuCapacity = 100;
 var embeddingModel = foundryProject.AddModelDeployment("TextEmbedding3Large", FoundryModel.OpenAI.TextEmbedding3Large);
 
 // Content Understanding lives on the same AI Services account; its endpoint is
