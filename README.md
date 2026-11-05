@@ -90,78 +90,6 @@ The one deliberate exception is **durable memory**: the Agent Memory Toolkit
 directly, because it manages its own vector-indexed schema. It is optional and
 the agent degrades cleanly without it — see [Memory](#memory).
 
-### One receipt, end to end
-
-The Python service orchestrates the turn; the chat model starts only after all
-attached receipts have been prepared. Attachments are processed sequentially.
-This diagram shows a successful turn, including the extraction-cache path:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as User
-    participant FE as Frontend
-  participant AG as Python service
-    participant CU as Content Understanding
-  participant LLM as Chat model (GPT-5.4)
-    participant M as MCP server
-    participant DB as Cosmos DB
-    participant B as Private Blob Storage
-    participant API as Read API
-
-    U->>FE: Upload receipt and describe the trip
-    FE->>AG: POST /chat (message + image, userId, conversationId)
-    AG->>M: get_conversation (receipt checkpoints)
-    M->>DB: Read conversation
-    M-->>AG: Existing checkpoints, if any
-    opt No upload checkpoint for this receipt
-      AG->>M: upload_receipt_image (original bytes)
-      M->>B: Store private image
-      M-->>AG: Stored image reference and photoUrl
-      AG->>M: save_receipt_checkpoint (image reference)
-      M->>DB: Save checkpoint
-    end
-    alt Completed extraction exists
-      AG->>AG: Reuse analysisJson; skip CU
-    else Extraction needed
-      AG->>AG: Prepare analysis copy; call CU provider.before_run
-      AG->>CU: Submit image to ExpensesAnalyzer via SDK
-      loop Until analysis completes or fails
-        AG->>CU: Poll analysis status via SDK
-        CU-->>AG: Status and result when ready
-      end
-      AG->>AG: Validate source and fields; convert to compact JSON
-      AG->>M: save_receipt_checkpoint (analysisJson)
-      M->>DB: Save completed extraction
-    end
-    AG->>AG: Agent.run with message, fields and receipt references
-    AG->>M: get_conversation (history provider)
-    M->>DB: Read transcript
-    M-->>AG: Conversation history
-    loop Model and tool rounds as needed
-      AG->>LLM: Send context and available tools
-      LLM-->>AG: Tool request or reply
-      opt Model requests a record tool
-        AG->>M: find_trip_by_name / create_trip / create_expense
-        M->>DB: Query or write records
-        M-->>AG: Tool result
-      end
-    end
-    AG->>M: append_conversation_messages
-    M->>DB: Save transcript
-    AG-->>FE: Reply and tool-call names
-    FE-->>U: Confirmation or clarification question
-    FE->>API: GET /api/expenses/{id}
-    API->>DB: read expense
-    FE->>API: GET /api/expenses/{id}/photo
-    API->>B: download private image
-    API-->>FE: image bytes
-```
-
-  If extraction or validation fails, the turn stops before the chat model and
-  model-selected record tools run. The uploaded image and its checkpoint may
-  already exist. If the trip is unclear, the model can ask for clarification rather
-  than create an expense; saved receipt context supports the next text turn.
 
 ---
 
@@ -182,9 +110,6 @@ scripts/
 docs/
   SETUP.md           # Step-by-step setup instructions
 ```
-
----
-
 ## Components
 
 ### Frontend (`src/frontend`, React + Vite)
