@@ -1,2 +1,4 @@
-fastapi
-pydantic
+    fastapi[standard]
+    pydantic
+    uvicorn
+    PyJWT[crypto]
