@@ -11,13 +11,6 @@ class Expense(BaseModel):
     category:ExpenseType
     total:float
 
-    @classmethod
-    def calc_total(self) -> float:
-        sum = 0
-        for item in self.items:
-            sum += item.amount
-        return sum
-
 class ExpenseType(Enum):
     FOOD = "food"
     TRANSPORT = "transport"

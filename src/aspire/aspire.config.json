@@ -1,4 +1,16 @@
 {
+  "configSource": {
+    "optOut": true,
+    "repository": "",
+    "path": ""
+  },
+  "appHost": {
+    "path": "apphost.cs"
+  },
+  "sdk": {
+    "version": "17.1.0-preview.1.26561.12"
+  },
+  "channel": "daily",
   "profiles": {
     "https": {
       "applicationUrl": "https://localhost:17236;http://localhost:15176",
@@ -8,7 +20,7 @@
         "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21150",
         "ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL": "https://localhost:21151",
         "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22125",
-        "DOTNET_ASPIRE_CONTAINER_RUNTIME": "docker"
+        "DOTNET_ASPIRE_CONTAINER_RUNTIME": "podman"
       }
     },
     "http": {
@@ -20,11 +32,8 @@
         "ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL": "http://localhost:19166",
         "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20121",
         "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true",
-        "DOTNET_ASPIRE_CONTAINER_RUNTIME": "docker"
+        "DOTNET_ASPIRE_CONTAINER_RUNTIME": "podman"
       }
     }
-  },
-  "appHost": {
-    "path": "apphost.cs"
   }
 }
